@@ -3,7 +3,6 @@ const app = express()
 const cors = require('cors')
 require('dotenv').config()
 const Person = require('./models/person')
-const { update } = require('tar')
 
 app.use(express.json())
 app.use(cors())
@@ -13,14 +12,8 @@ app.get('/', (request, response) => {
     response.send('<h2>Helllo World</h2>')
 })
 
-app.post('/api/persons', (request, response) => {
+app.post('/api/persons', (request, response, next) => {
     const body = request.body
-
-    if (!body.name || !body.number) {
-        return response.status(400).json({
-            error: 'no content'
-        })
-    }
 
     const person = new Person({
         name: body.name,
@@ -30,6 +23,7 @@ app.post('/api/persons', (request, response) => {
     person.save().then(savedPerson => {
         response.json(savedPerson)
     })
+    .catch(error => next(error))
 })
 
 app.get('/api/persons', (request, response) => {
@@ -44,7 +38,7 @@ app.get('/api/persons/:id', (request, response) => {
     })
 })
 
-app.get('/info', (request, response) => {
+app.get('/info', (request, response, next) => {
     Person.estimatedDocumentCount({})
         .then((count) => {
             const message = `<p>Phonebook has info of ${count} people.</p>`
@@ -73,7 +67,7 @@ app.put('/api/persons/:id', (request, response, next) => {
         .catch(error => next(error))
 })
 
-app.delete('/api/persons/:id', (request, response) => {
+app.delete('/api/persons/:id', (request, response, next) => {
     Person.findByIdAndRemove(request.params.id)
         .then(result => {
             response.status(204).end()
@@ -86,6 +80,8 @@ const errorHandler = (error, request, response, next) => {
 
     if(error.name === 'CastError') {
         return response.status(400).send({ error: 'malformmatted id' })
+    } else if (error.name === 'ValidationError') {
+        return response.status(400).json({ error: error.message })
     }
     next(error)
 }
